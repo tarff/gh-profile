@@ -1,11 +1,7 @@
 ---
-name: clone
 description: Clone a GitHub repository using the appropriate profile
 argument-hint: "<repo-url> [profile]"
-allowed-tools:
-  - Bash
-  - Read
-  - AskUserQuestion
+allowed-tools: Bash, Read, AskUserQuestion
 ---
 
 # Clone with Profile

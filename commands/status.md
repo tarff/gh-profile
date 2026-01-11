@@ -1,9 +1,6 @@
 ---
-name: status
 description: Show current GitHub profile and git configuration
-allowed-tools:
-  - Bash
-  - Read
+allowed-tools: Bash, Read
 ---
 
 # GitHub Profile Status

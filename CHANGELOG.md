@@ -2,6 +2,12 @@
 
 All notable changes to the gh-profile plugin will be documented in this file.
 
+## [1.2.0] - 2025-01-11
+
+### Fixed
+- **Hook configuration format**: Removed incorrect nested `"hooks"` wrapper in hooks.json that prevented plugin from loading
+- **Command frontmatter format**: Simplified to match Claude Code expected format (comma-separated `allowed-tools`, removed redundant `name` field)
+
 ## [1.1.0] - 2025-01-11
 
 ### Added

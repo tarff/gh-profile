@@ -1,11 +1,7 @@
 ---
-name: switch
 description: Switch to a different GitHub profile (personal or work)
 argument-hint: "<profile>"
-allowed-tools:
-  - Bash
-  - Read
-  - AskUserQuestion
+allowed-tools: Bash, Read, AskUserQuestion
 ---
 
 # Switch GitHub Profile

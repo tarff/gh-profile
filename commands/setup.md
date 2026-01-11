@@ -1,11 +1,6 @@
 ---
-name: setup
 description: Interactive setup wizard to configure GitHub profiles
-allowed-tools:
-  - Bash
-  - Read
-  - Write
-  - AskUserQuestion
+allowed-tools: Bash, Read, Write, AskUserQuestion
 ---
 
 # GitHub Profile Setup Wizard

@@ -5,12 +5,13 @@
   },
   "metadata": {
     "description": "Switch between personal and work GitHub profiles with auto-detection based on project folder",
-    "version": "1.0.0"
+    "version": "1.2.0"
   },
   "plugins": [
     {
       "name": "gh-profile",
       "source": "./",
+      "version": "1.2.0",
       "description": "Switch between personal and work GitHub profiles with auto-detection based on project folder",
       "category": "git",
       "tags": ["github", "git", "profile", "ssh", "work", "personal"]
