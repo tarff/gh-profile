@@ -1,14 +1,15 @@
 # gh-profile
 
-Switch between personal and work GitHub profiles with auto-detection based on project folder.
+Switch between personal and work GitHub profiles with auto-detection based on project folder. Supports both git config and GitHub CLI (`gh`) authentication.
 
 ## Features
 
-- **Auto-switch**: Automatically switches git identity based on your project folder on session start
+- **Auto-switch**: Automatically switches git identity AND gh CLI auth based on your project folder on session start
 - **Multiple accounts**: Supports different GitHub accounts in different directories simultaneously
 - **Profile switching**: Manually switch profiles when needed
 - **Clone support**: Clone repos using the correct profile's credentials
 - **GPG signing**: Supports different GPG signing keys per profile
+- **gh CLI integration**: Automatically switches `gh auth` when changing profiles
 
 ## Installation
 
@@ -29,12 +30,33 @@ See `examples/gh-profile.local.md` for a complete configuration template.
 
 Copy to `~/.claude/gh-profile.local.md` and edit with your settings.
 
+### Configuration Fields
+
+```yaml
+profiles:
+  personal:
+    name: "Your Name"           # git user.name
+    email: "you@personal.com"   # git user.email
+    signing_key: ""             # GPG key ID (optional)
+    gh_user: "your-gh-username" # GitHub CLI account
+    paths:
+      - "C:/Personal/*"         # Directories using this profile
+  work:
+    name: "Your Name"
+    email: "you@company.com"
+    signing_key: ""
+    gh_user: "work-gh-username"
+    paths:
+      - "C:/Work/*"
+default: personal               # Used when no path matches
+```
+
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `/gh-profile:status` | Show current active profile and git configuration |
-| `/gh-profile:switch <profile>` | Switch to personal or work profile |
+| `/gh-profile:status` | Show current active profile, git config, and gh auth status |
+| `/gh-profile:switch <profile>` | Switch to personal or work profile (git + gh auth) |
 | `/gh-profile:clone <url>` | Clone a repo using the appropriate profile |
 | `/gh-profile:setup` | Interactive setup wizard for profiles |
 
@@ -42,12 +64,71 @@ Copy to `~/.claude/gh-profile.local.md` and edit with your settings.
 
 1. **On session start**: The plugin checks if you're in a git repository
 2. **Path matching**: Compares your current directory against configured paths
-3. **Auto-switch**: Automatically applies the matching profile's `user.name`, `user.email`, and `user.signingkey`
+3. **Auto-switch**: Automatically applies the matching profile's git config AND switches gh CLI auth
 4. **Local config**: Uses per-repository git config, so multiple Claude windows can use different profiles
 
-## Multiple GitHub Accounts
+## GitHub CLI Multi-Account Setup
 
-To use different GitHub accounts in different directories (e.g., personal and work), you need to configure SSH keys:
+The easiest way to use multiple GitHub accounts is with the GitHub CLI (`gh`).
+
+### 1. Install GitHub CLI
+
+Download from https://cli.github.com/
+
+### 2. Log in to both accounts
+
+```bash
+# Log in to your first account
+gh auth login
+
+# Log in to your second account (same command, different credentials)
+gh auth login
+```
+
+When prompted, choose the same host (github.com) - gh supports multiple accounts per host.
+
+### 3. Verify both accounts are logged in
+
+```bash
+gh auth status
+```
+
+You should see both accounts listed.
+
+### 4. Configure gh-profile
+
+Run `/gh-profile:setup` or add `gh_user` to your config file:
+
+```yaml
+profiles:
+  personal:
+    # ... other settings ...
+    gh_user: "your-personal-username"
+  work:
+    # ... other settings ...
+    gh_user: "your-work-username"
+```
+
+### 5. Done!
+
+The plugin will now automatically switch both git config AND gh CLI authentication when you enter different project directories.
+
+## Manual gh auth Commands
+
+```bash
+# See all logged-in accounts
+gh auth status
+
+# Switch accounts interactively
+gh auth switch
+
+# Switch to specific account
+gh auth switch --user USERNAME
+```
+
+## SSH Key Setup (Alternative)
+
+If you prefer SSH keys over gh CLI authentication, you can still use that approach:
 
 ### 1. Generate separate SSH keys
 
@@ -61,7 +142,7 @@ ssh-keygen -t ed25519 -C "work@email.com" -f ~/.ssh/id_ed25519_work
 
 ### 2. Add keys to GitHub
 
-Add each public key to its respective GitHub account under Settings → SSH and GPG keys.
+Add each public key to its respective GitHub account under Settings > SSH and GPG keys.
 
 ### 3. Configure SSH
 
@@ -93,16 +174,22 @@ git clone git@github.com-personal:username/repo.git
 git clone git@github.com-work:company/repo.git
 ```
 
-### 5. Update existing repos
+## Troubleshooting
 
-For existing repos, update the remote URL:
+### gh auth switch fails
+
+If `gh auth switch` fails with "account not found", you need to log in to that account:
 
 ```bash
-# Check current remote
-git remote -v
-
-# Update to use correct host alias
-git remote set-url origin git@github.com-personal:username/repo.git
+gh auth login
 ```
 
-This allows you to have two Claude windows open - one in a personal project and one in a work project - each using the correct GitHub account.
+### Profile not switching automatically
+
+1. Check that your current directory matches a path pattern in your config
+2. Run `/gh-profile:status` to see the current state
+3. Verify your config file syntax with proper YAML formatting
+
+### Multiple Claude windows
+
+Each Claude window maintains its own state. The plugin uses per-repository git config, so different windows can use different profiles simultaneously.
