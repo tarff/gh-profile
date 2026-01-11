@@ -13,11 +13,24 @@ Switch between personal and work GitHub profiles with auto-detection based on pr
 
 ## Installation
 
+### Via Claude Code CLI (Recommended)
+
 ```bash
-claude --plugin-dir "/path/to/gh-profile"
+# Add the marketplace
+claude plugin marketplace add https://github.com/tarff/gh-profile
+
+# Install the plugin
+claude plugin install gh-profile@tarff
 ```
 
-Or add to your Claude Code plugins directory.
+### Verify Installation
+
+```bash
+# Check it's installed
+claude plugin marketplace list
+```
+
+Then restart Claude Code for the plugin to load.
 
 ## Setup
 
