@@ -9,9 +9,6 @@ set -euo pipefail
 #######################################
 
 # Escape a string for safe JSON embedding
-# Note: Backslash escaping in bash parameter expansion is unreliable across platforms.
-# For git names/emails (our use case), backslashes are essentially never used.
-# Quote escaping is the critical security measure and works reliably.
 json_escape() {
   local str="$1"
   # Escape double quotes - the primary JSON injection vector
@@ -39,7 +36,7 @@ output_json() {
 # This converts a glob pattern (with *) to a safe regex pattern
 escape_for_regex() {
   local str="$1"
-  # Define backslash as variable to avoid bash parsing issues with }}
+  # Define backslash as variable to avoid bash parsing issues
   local bs='\\'
   # Escape all regex metacharacters: \ . [ ] ^ $ + ? { } | ( )
   # MUST escape backslash first
@@ -124,26 +121,31 @@ fi
 
 # Get current directory (normalize for Windows compatibility)
 # Convert: /c/path -> C:/path (Git Bash to Windows format)
-# Also normalize backslashes to forward slashes
+# Also normalize backslashes to forward slashes and convert to lowercase for case-insensitive matching
 CURRENT_DIR="$(pwd | sed 's|\\|/|g' | sed 's|^/\([a-zA-Z]\)/|\U\1:/|')"
+CURRENT_DIR_LOWER=$(echo "$CURRENT_DIR" | tr '[:upper:]' '[:lower:]')
 
 # Initialize profile variables
 MATCHED_PROFILE=""
 PROFILE_NAME=""
 PROFILE_EMAIL=""
 PROFILE_GH_USER=""
+PROFILE_SIGNING_KEY=""
 
 # Check personal profile paths
 # Use while-read loop to handle paths with spaces correctly
 while IFS= read -r path_pattern || [ -n "$path_pattern" ]; do
   [ -z "$path_pattern" ] && continue
+  # Normalize pattern to lowercase for case-insensitive matching
+  path_pattern_lower=$(echo "$path_pattern" | sed 's|\\\\|/|g; s|\\|/|g' | tr '[:upper:]' '[:lower:]')
   # Escape regex metacharacters, then convert glob * to .*
-  regex_pattern=$(escape_for_regex "$path_pattern")
-  if printf '%s' "$CURRENT_DIR" | grep -qE "^${regex_pattern}$" 2>/dev/null; then
+  regex_pattern=$(escape_for_regex "$path_pattern_lower")
+  if printf '%s' "$CURRENT_DIR_LOWER" | grep -qE "^${regex_pattern}$" 2>/dev/null; then
     MATCHED_PROFILE="personal"
     PROFILE_NAME=$(extract_field "personal" "work:" "name" "$CONFIG_FILE")
     PROFILE_EMAIL=$(extract_field "personal" "work:" "email" "$CONFIG_FILE")
     PROFILE_GH_USER=$(extract_field "personal" "work:" "gh_user" "$CONFIG_FILE")
+    PROFILE_SIGNING_KEY=$(extract_field "personal" "work:" "signing_key" "$CONFIG_FILE")
     break
   fi
 done <<< "$(extract_paths "personal" "work:" "$CONFIG_FILE")"
@@ -152,12 +154,14 @@ done <<< "$(extract_paths "personal" "work:" "$CONFIG_FILE")"
 if [ -z "$MATCHED_PROFILE" ]; then
   while IFS= read -r path_pattern || [ -n "$path_pattern" ]; do
     [ -z "$path_pattern" ] && continue
-    regex_pattern=$(escape_for_regex "$path_pattern")
-    if printf '%s' "$CURRENT_DIR" | grep -qE "^${regex_pattern}$" 2>/dev/null; then
+    path_pattern_lower=$(echo "$path_pattern" | sed 's|\\\\|/|g; s|\\|/|g' | tr '[:upper:]' '[:lower:]')
+    regex_pattern=$(escape_for_regex "$path_pattern_lower")
+    if printf '%s' "$CURRENT_DIR_LOWER" | grep -qE "^${regex_pattern}$" 2>/dev/null; then
       MATCHED_PROFILE="work"
       PROFILE_NAME=$(extract_field "work" "default:" "name" "$CONFIG_FILE")
       PROFILE_EMAIL=$(extract_field "work" "default:" "email" "$CONFIG_FILE")
       PROFILE_GH_USER=$(extract_field "work" "default:" "gh_user" "$CONFIG_FILE")
+      PROFILE_SIGNING_KEY=$(extract_field "work" "default:" "signing_key" "$CONFIG_FILE")
       break
     fi
   done <<< "$(extract_paths "work" "default:" "$CONFIG_FILE")"
@@ -171,10 +175,12 @@ if [ -z "$MATCHED_PROFILE" ]; then
     PROFILE_NAME=$(extract_field "personal" "work:" "name" "$CONFIG_FILE")
     PROFILE_EMAIL=$(extract_field "personal" "work:" "email" "$CONFIG_FILE")
     PROFILE_GH_USER=$(extract_field "personal" "work:" "gh_user" "$CONFIG_FILE")
+    PROFILE_SIGNING_KEY=$(extract_field "personal" "work:" "signing_key" "$CONFIG_FILE")
   elif [ "$MATCHED_PROFILE" = "work" ]; then
     PROFILE_NAME=$(extract_field "work" "default:" "name" "$CONFIG_FILE")
     PROFILE_EMAIL=$(extract_field "work" "default:" "email" "$CONFIG_FILE")
     PROFILE_GH_USER=$(extract_field "work" "default:" "gh_user" "$CONFIG_FILE")
+    PROFILE_SIGNING_KEY=$(extract_field "work" "default:" "signing_key" "$CONFIG_FILE")
   else
     output_json "true" "gh-profile: Invalid default profile. Expected 'personal' or 'work'."
     exit 0
@@ -196,6 +202,7 @@ fi
 # Get current git config
 CURRENT_NAME=$(git config user.name 2>/dev/null || echo "")
 CURRENT_EMAIL=$(git config user.email 2>/dev/null || echo "")
+CURRENT_SIGNING_KEY=$(git config user.signingkey 2>/dev/null || echo "")
 
 # Track what we changed
 GIT_SWITCHED=false
@@ -207,6 +214,13 @@ if [ "$CURRENT_NAME" != "$PROFILE_NAME" ] || [ "$CURRENT_EMAIL" != "$PROFILE_EMA
   # Apply git config (values are properly quoted to prevent shell expansion)
   git config user.name "$PROFILE_NAME"
   git config user.email "$PROFILE_EMAIL"
+  GIT_SWITCHED=true
+fi
+
+# Check if signing key needs update (only if profile has one configured)
+if [ -n "$PROFILE_SIGNING_KEY" ] && [ "$CURRENT_SIGNING_KEY" != "$PROFILE_SIGNING_KEY" ]; then
+  git config user.signingkey "$PROFILE_SIGNING_KEY"
+  git config commit.gpgsign true
   GIT_SWITCHED=true
 fi
 

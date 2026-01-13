@@ -1,0 +1,11 @@
+# Temporary files
+tmpclaude-*.cwd
+*.tmp
+*.temp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local config (user-specific)
+gh-profile.local.md
