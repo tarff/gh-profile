@@ -1,10 +1,10 @@
 {
-  "name": "gh-profile",
+  "name": "tarff",
   "owner": {
-    "name": "User"
+    "name": "tarff"
   },
   "metadata": {
-    "description": "Switch between personal and work GitHub profiles with auto-detection based on project folder",
+    "description": "GitHub profile switching plugin",
     "version": "1.2.1"
   },
   "plugins": [
