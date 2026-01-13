@@ -2,8 +2,8 @@
   "SessionStart": [
     {
       "type": "command",
-      "command": "bash \"$CLAUDE_PLUGIN_ROOT/hooks/detect-profile.sh\"",
-      "timeout": 10
+      "command": "bash $CLAUDE_PLUGIN_ROOT/hooks/detect-profile.sh",
+      "timeout": 10000
     }
   ]
 }
