@@ -1,10 +1,8 @@
 {
   "name": "gh-profile",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Switch between personal and work GitHub profiles with auto-detection based on project folder",
   "author": {
     "name": "User"
-  },
-  "commands": "commands",
-  "hooks": "hooks/hooks.json"
+  }
 }
