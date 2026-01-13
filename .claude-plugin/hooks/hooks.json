@@ -1,9 +1,16 @@
 {
-  "SessionStart": [
-    {
-      "type": "command",
-      "command": ["bash", "${CLAUDE_PLUGIN_ROOT}/hooks/detect-profile.sh"],
-      "timeout": 10000
-    }
-  ]
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/detect-profile.sh\"",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
 }
