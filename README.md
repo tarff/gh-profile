@@ -139,54 +139,6 @@ gh auth switch
 gh auth switch --user USERNAME
 ```
 
-## SSH Key Setup (Alternative)
-
-If you prefer SSH keys over gh CLI authentication, you can still use that approach:
-
-### 1. Generate separate SSH keys
-
-```bash
-# Personal account
-ssh-keygen -t ed25519 -C "personal@email.com" -f ~/.ssh/id_ed25519_personal
-
-# Work account
-ssh-keygen -t ed25519 -C "work@email.com" -f ~/.ssh/id_ed25519_work
-```
-
-### 2. Add keys to GitHub
-
-Add each public key to its respective GitHub account under Settings > SSH and GPG keys.
-
-### 3. Configure SSH
-
-Edit `~/.ssh/config`:
-
-```
-# Personal GitHub
-Host github.com-personal
-    HostName github.com
-    User git
-    IdentityFile ~/.ssh/id_ed25519_personal
-    IdentitiesOnly yes
-
-# Work GitHub
-Host github.com-work
-    HostName github.com
-    User git
-    IdentityFile ~/.ssh/id_ed25519_work
-    IdentitiesOnly yes
-```
-
-### 4. Clone with the correct host
-
-```bash
-# Personal repos
-git clone git@github.com-personal:username/repo.git
-
-# Work repos
-git clone git@github.com-work:company/repo.git
-```
-
 ## Troubleshooting
 
 ### gh auth switch fails
@@ -199,10 +151,31 @@ gh auth login
 
 ### Profile not switching automatically
 
-1. Check that your current directory matches a path pattern in your config
-2. Run `/gh-profile:status` to see the current state
-3. Verify your config file syntax with proper YAML formatting
+1. **Restart Claude Code** after installing or updating the plugin
+2. Check that your current directory matches a path pattern in your config
+3. Run `/gh-profile:status` to see the current state
+4. Verify your config file syntax with proper YAML formatting
+5. Check that the plugin is enabled: look for `gh-profile@tarff: true` in `~/.claude/settings.json`
+
+### Updating the plugin
+
+To get the latest version:
+
+```bash
+# Update the marketplace
+cd ~/.claude/plugins/marketplaces/tarff
+git pull
+
+# Clear the cache to force reinstall
+rm -rf ~/.claude/plugins/cache/tarff
+
+# Restart Claude Code
+```
 
 ### Multiple Claude windows
 
 Each Claude window maintains its own state. The plugin uses per-repository git config, so different windows can use different profiles simultaneously.
+
+## License
+
+MIT
