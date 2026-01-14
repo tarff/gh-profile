@@ -103,7 +103,15 @@ if ! grep -q '^profiles:' "$CONFIG_FILE" 2>/dev/null; then
   exit 0
 fi
 
-CURRENT_DIR="$(pwd | sed 's|\|/|g' | sed 's|^/\([a-zA-Z]\)/|\U\1:/|')"
+# Convert Git Bash path /c/foo to C:/foo format
+RAW_PWD="$(pwd)"
+if [[ "$RAW_PWD" =~ ^/([a-zA-Z])/ ]]; then
+  DRIVE_LETTER="${BASH_REMATCH[1]}"
+  DRIVE_LETTER="${DRIVE_LETTER^^}"  # uppercase
+  CURRENT_DIR="${DRIVE_LETTER}:${RAW_PWD:2}"
+else
+  CURRENT_DIR="$RAW_PWD"
+fi
 CURRENT_DIR_LOWER=$(echo "$CURRENT_DIR" | tr '[:upper:]' '[:lower:]')
 
 MATCHED_PROFILE=""
@@ -115,7 +123,9 @@ PROFILE_SIGNING_KEY=""
 # Check personal profile paths
 while IFS= read -r path_pattern || [ -n "$path_pattern" ]; do
   [ -z "$path_pattern" ] && continue
-  path_pattern_lower=$(echo "$path_pattern" | sed 's|\\|/|g; s|\|/|g' | tr '[:upper:]' '[:lower:]')
+  # Normalize path: convert backslashes to forward slashes and lowercase
+  path_pattern_lower="${path_pattern//\\//}"
+  path_pattern_lower=$(echo "$path_pattern_lower" | tr '[:upper:]' '[:lower:]')
   regex_pattern=$(escape_for_regex "$path_pattern_lower")
   if printf '%s' "$CURRENT_DIR_LOWER" | grep -qE "^${regex_pattern}$" 2>/dev/null; then
     MATCHED_PROFILE="personal"
@@ -131,7 +141,9 @@ done <<< "$(extract_paths "personal" "work:" "$CONFIG_FILE")"
 if [ -z "$MATCHED_PROFILE" ]; then
   while IFS= read -r path_pattern || [ -n "$path_pattern" ]; do
     [ -z "$path_pattern" ] && continue
-    path_pattern_lower=$(echo "$path_pattern" | sed 's|\\|/|g; s|\|/|g' | tr '[:upper:]' '[:lower:]')
+    # Normalize path: convert backslashes to forward slashes and lowercase
+  path_pattern_lower="${path_pattern//\\//}"
+  path_pattern_lower=$(echo "$path_pattern_lower" | tr '[:upper:]' '[:lower:]')
     regex_pattern=$(escape_for_regex "$path_pattern_lower")
     if printf '%s' "$CURRENT_DIR_LOWER" | grep -qE "^${regex_pattern}$" 2>/dev/null; then
       MATCHED_PROFILE="work"
@@ -191,6 +203,15 @@ fi
 # Set up per-profile GH_CONFIG_DIR
 GH_CONFIG_DIR="$HOME/.claude/gh-configs/$MATCHED_PROFILE"
 mkdir -p "$GH_CONFIG_DIR"
+
+# Convert to Windows path format for Claude Code (C:/Users/... instead of /c/Users/...)
+if [[ "$GH_CONFIG_DIR" =~ ^/([a-zA-Z])/ ]]; then
+  DRIVE="${BASH_REMATCH[1]}"
+  DRIVE="${DRIVE^^}"
+  GH_CONFIG_DIR_WIN="${DRIVE}:${GH_CONFIG_DIR:2}"
+else
+  GH_CONFIG_DIR_WIN="$GH_CONFIG_DIR"
+fi
 GH_STATUS=""
 
 if command -v gh &> /dev/null; then
@@ -214,5 +235,5 @@ else
   MESSAGE="gh-profile: Using $MATCHED_PROFILE ($PROFILE_EMAIL), gh: $GH_STATUS"
 fi
 
-output_json_with_env "true" "$MESSAGE" "$GH_CONFIG_DIR"
+output_json_with_env "true" "$MESSAGE" "$GH_CONFIG_DIR_WIN"
 exit 0
