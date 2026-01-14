@@ -229,10 +229,11 @@ else
   GH_STATUS="gh not installed"
 fi
 
+GH_INSTRUCTION="CRITICAL: For ALL gh CLI commands, you MUST use: GH_CONFIG_DIR=\"$GH_CONFIG_DIR_WIN\" gh <command>"
 if [ "$GIT_SWITCHED" = true ]; then
-  MESSAGE="gh-profile: Switched to $MATCHED_PROFILE ($PROFILE_EMAIL), gh: $GH_STATUS. IMPORTANT: When running gh CLI commands, prefix with: GH_CONFIG_DIR=\"$GH_CONFIG_DIR_WIN\""
+  MESSAGE="gh-profile: Switched to $MATCHED_PROFILE ($PROFILE_EMAIL), gh: $GH_STATUS. $GH_INSTRUCTION"
 else
-  MESSAGE="gh-profile: Using $MATCHED_PROFILE ($PROFILE_EMAIL), gh: $GH_STATUS. IMPORTANT: When running gh CLI commands, prefix with: GH_CONFIG_DIR=\"$GH_CONFIG_DIR_WIN\""
+  MESSAGE="gh-profile: Using $MATCHED_PROFILE ($PROFILE_EMAIL), gh: $GH_STATUS. $GH_INSTRUCTION"
 fi
 
 output_json_with_env "true" "$MESSAGE" "$GH_CONFIG_DIR_WIN"
