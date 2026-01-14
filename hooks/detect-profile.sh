@@ -230,9 +230,9 @@ else
 fi
 
 if [ "$GIT_SWITCHED" = true ]; then
-  MESSAGE="gh-profile: Switched to $MATCHED_PROFILE ($PROFILE_EMAIL), gh: $GH_STATUS"
+  MESSAGE="gh-profile: Switched to $MATCHED_PROFILE ($PROFILE_EMAIL), gh: $GH_STATUS. IMPORTANT: When running gh CLI commands, prefix with: GH_CONFIG_DIR=\"$GH_CONFIG_DIR_WIN\""
 else
-  MESSAGE="gh-profile: Using $MATCHED_PROFILE ($PROFILE_EMAIL), gh: $GH_STATUS"
+  MESSAGE="gh-profile: Using $MATCHED_PROFILE ($PROFILE_EMAIL), gh: $GH_STATUS. IMPORTANT: When running gh CLI commands, prefix with: GH_CONFIG_DIR=\"$GH_CONFIG_DIR_WIN\""
 fi
 
 output_json_with_env "true" "$MESSAGE" "$GH_CONFIG_DIR_WIN"
