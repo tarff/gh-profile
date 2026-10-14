@@ -39,27 +39,33 @@ Switch the current repository to use a specific GitHub profile, including both g
    - If profile has a signing_key: `git config user.signingkey "[key]"`
    - If profile has NO signing_key: `git config --unset user.signingkey 2>/dev/null || true`
 
-### Phase 4: Apply gh CLI Authentication
+### Phase 4: Point gh CLI at the Profile's Config
+
+Each profile has its own isolated gh config folder at `~/.claude/gh-configs/[profile]` (created by the SessionStart hook). Switching profiles means using that folder, not `gh auth switch`.
 
 6. **Check if gh CLI is installed**:
    ```bash
    gh --version 2>/dev/null || echo "NOT_INSTALLED"
    ```
 
-7. **If gh is installed AND profile has gh_user set**:
+7. **If gh is installed**, check the profile's gh login:
    ```bash
-   gh auth switch --user "[gh_user]" 2>&1
+   GH_CONFIG_DIR="$HOME/.claude/gh-configs/[profile]" command gh auth status 2>&1
    ```
 
    Handle the result:
-   - **Success**: Note that gh auth was switched
-   - **"account not found" error**: Warn user they need to run `gh auth login` for this account
-   - **"only one account" message**: This is fine, user only has one gh account logged in
+   - **Logged in**: Note the account. If `gh_user` is set and differs from the logged-in account, warn about the mismatch
+   - **Not logged in**: Warn the user to log in to that profile's folder (see Phase 5)
    - **Other error**: Warn but don't fail the operation
 
-8. **If gh is NOT installed**: Skip gh auth switch silently (git config is still applied)
+8. **If gh is NOT installed**: Skip gh checks silently (git config is still applied)
 
-9. **If profile has NO gh_user set**: Skip gh auth switch, note that gh_user is not configured
+9. **For the rest of this session**, run every gh command with the profile's folder:
+   ```bash
+   GH_CONFIG_DIR="$HOME/.claude/gh-configs/[profile]" command gh <command>
+   ```
+   This overrides the GH_CONFIG_DIR set at session start. A new session will auto-detect from the folder again.
+   `command gh` skips any shell function or alias named `gh` that would pick the profile from the folder instead.
 
 ### Phase 5: Confirmation
 
@@ -74,7 +80,8 @@ Switch the current repository to use a specific GitHub profile, including both g
     ✓ Signing Key: [key or "not set"]
 
     GitHub CLI:
-    ✓ Active account: [gh_user]
+    ✓ Account: [logged-in account]
+    ✓ Config: ~/.claude/gh-configs/[profile]
     ```
 
     Or if gh auth had issues:
@@ -88,12 +95,11 @@ Switch the current repository to use a specific GitHub profile, including both g
     ✓ Signing Key: [key or "not set"]
 
     GitHub CLI:
-    ⚠ Could not switch to [gh_user]: [reason]
-      Run: gh auth login
-      Then: gh auth switch --user [gh_user]
+    ⚠ Not logged in for [profile]: [reason]
+      Run: GH_CONFIG_DIR="$HOME/.claude/gh-configs/[profile]" command gh auth login
     ```
 
 11. **Verify the switch worked** by running:
     ```bash
-    echo "GIT_NAME=$(git config user.name)" && echo "GIT_EMAIL=$(git config user.email)" && gh auth status 2>&1 | head -3
+    echo "GIT_NAME=$(git config user.name)" && echo "GIT_EMAIL=$(git config user.email)" && GH_CONFIG_DIR="$HOME/.claude/gh-configs/[profile]" command gh auth status 2>&1 | head -3
     ```

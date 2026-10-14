@@ -2,6 +2,34 @@
 
 All notable changes to the gh-profile plugin will be documented in this file.
 
+## [1.2.3] - 2026-10-14
+
+### Fixed
+- **`/gh-profile:switch` and `/gh-profile:clone`**: Use the profile's own gh config folder (`GH_CONFIG_DIR`) instead of `gh auth switch`, which no longer matched how logins are stored
+
+### Changed
+- README, setup wizard and example config now describe logging in once per profile folder, the `gh-wrapper` script, and optional per-folder git credentials
+
+## [1.2.2] - 2026-02-25
+
+### Fixed
+- Republished so the marketplace picks up the Windows Git Bash sed path fix from 1.2.1
+
+## [1.2.1] - 2026-01-14
+
+### Added
+- **Per-profile `GH_CONFIG_DIR`**: Each profile gets its own gh config folder at `~/.claude/gh-configs/<profile>`, so different terminals can use different accounts at once
+- Session start message tells Claude to prefix gh commands with the profile's `GH_CONFIG_DIR`
+- `hooks/gh-wrapper.sh` / `gh-wrapper.cmd`: run gh with the profile picked from the current folder
+
+### Fixed
+- Windows-compatible hook wrapper (`run-hook.cmd`)
+- sed path conversion under Windows Git Bash
+- Commands and hooks moved to the plugin root; marketplace name matches directory name
+
+### Changed
+- README: plugin update and restart instructions
+
 ## [1.2.0] - 2025-01-11
 
 ### Fixed

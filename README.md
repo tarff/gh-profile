@@ -4,12 +4,12 @@ Switch between personal and work GitHub profiles with auto-detection based on pr
 
 ## Features
 
-- **Auto-switch**: Automatically switches git identity AND gh CLI auth based on your project folder on session start
+- **Auto-switch**: Automatically switches git identity AND points gh CLI at the matching profile's login, based on your project folder on session start
 - **Multiple accounts**: Supports different GitHub accounts in different directories simultaneously
 - **Profile switching**: Manually switch profiles when needed
 - **Clone support**: Clone repos using the correct profile's credentials
 - **GPG signing**: Supports different GPG signing keys per profile
-- **gh CLI integration**: Automatically switches `gh auth` when changing profiles
+- **gh CLI isolation**: Each profile has its own gh config folder (`~/.claude/gh-configs/<profile>`), so different terminals can use different accounts at the same time
 
 ## Installation
 
@@ -77,36 +77,34 @@ default: personal               # Used when no path matches
 
 1. **On session start**: The plugin checks if you're in a git repository
 2. **Path matching**: Compares your current directory against configured paths
-3. **Auto-switch**: Automatically applies the matching profile's git config AND switches gh CLI auth
+3. **Auto-switch**: Applies the matching profile's git config and sets `GH_CONFIG_DIR` to `~/.claude/gh-configs/<profile>` for the session
 4. **Local config**: Uses per-repository git config, so multiple Claude windows can use different profiles
 
 ## GitHub CLI Multi-Account Setup
 
-The easiest way to use multiple GitHub accounts is with the GitHub CLI (`gh`).
+Each profile gets its own gh config folder at `~/.claude/gh-configs/<profile>`. gh reads the folder named by `GH_CONFIG_DIR`, so each folder holds one login and nothing has to be switched back and forth.
 
 ### 1. Install GitHub CLI
 
 Download from https://cli.github.com/
 
-### 2. Log in to both accounts
+### 2. Log in once per profile
+
+Run these in Git Bash (or any POSIX shell):
 
 ```bash
-# Log in to your first account
-gh auth login
-
-# Log in to your second account (same command, different credentials)
-gh auth login
+GH_CONFIG_DIR="$HOME/.claude/gh-configs/personal" gh auth login
+GH_CONFIG_DIR="$HOME/.claude/gh-configs/work" gh auth login
 ```
 
-When prompted, choose the same host (github.com) - gh supports multiple accounts per host.
+Log in with your personal account for the first and your work account for the second.
 
-### 3. Verify both accounts are logged in
+### 3. Verify each login
 
 ```bash
-gh auth status
+GH_CONFIG_DIR="$HOME/.claude/gh-configs/personal" gh auth status
+GH_CONFIG_DIR="$HOME/.claude/gh-configs/work" gh auth status
 ```
-
-You should see both accounts listed.
 
 ### 4. Configure gh-profile
 
@@ -124,29 +122,56 @@ profiles:
 
 ### 5. Done!
 
-The plugin will now automatically switch both git config AND gh CLI authentication when you enter different project directories.
+On session start the plugin sets `GH_CONFIG_DIR` for the matching profile and tells Claude to prefix gh commands with it.
 
-## Manual gh auth Commands
+### Optional: gh-wrapper
+
+`hooks/gh-wrapper.sh` (and `hooks/gh-wrapper.cmd` on Windows) picks the profile from the current folder and runs `gh` with the right `GH_CONFIG_DIR`. Call it in place of `gh` in your own terminals if you want the same behaviour outside Claude Code.
+
+### Optional: make `git push` use the same account
+
+`gh` commands use `GH_CONFIG_DIR`, but plain `git push`/`git pull` over HTTPS use git's credential helper. To make git pick the right account by folder, create one gitconfig per profile:
+
+```ini
+# ~/.claude/gh-configs/personal.gitconfig
+[credential "https://github.com"]
+	helper =
+	helper = !GH_CONFIG_DIR=\"C:/Users/you/.claude/gh-configs/personal\" gh auth git-credential
+```
+
+Then include it for that profile's folders in your global `~/.gitconfig`:
+
+```ini
+[includeIf "gitdir/i:C:/Personal/"]
+	path = C:/Users/you/.claude/gh-configs/personal.gitconfig
+```
+
+Repeat for work.
+
+## Manual gh Commands
 
 ```bash
-# See all logged-in accounts
-gh auth status
+# Check which account a profile is logged in as
+GH_CONFIG_DIR="$HOME/.claude/gh-configs/<profile>" gh auth status
 
-# Switch accounts interactively
-gh auth switch
-
-# Switch to specific account
-gh auth switch --user USERNAME
+# Re-login a profile
+GH_CONFIG_DIR="$HOME/.claude/gh-configs/<profile>" gh auth login
 ```
 
 ## Troubleshooting
 
-### gh auth switch fails
+### gh commands use the wrong account (or say not logged in)
 
-If `gh auth switch` fails with "account not found", you need to log in to that account:
+Check the profile's own login:
 
 ```bash
-gh auth login
+GH_CONFIG_DIR="$HOME/.claude/gh-configs/<profile>" gh auth status
+```
+
+If it's missing or the wrong account, log in again for that profile:
+
+```bash
+GH_CONFIG_DIR="$HOME/.claude/gh-configs/<profile>" gh auth login
 ```
 
 ### Profile not switching automatically
@@ -174,7 +199,7 @@ rm -rf ~/.claude/plugins/cache/tarff
 
 ### Multiple Claude windows
 
-Each Claude window maintains its own state. The plugin uses per-repository git config, so different windows can use different profiles simultaneously.
+Each Claude window maintains its own state. The plugin uses per-repository git config and a per-profile `GH_CONFIG_DIR`, so different windows can use different profiles simultaneously.
 
 ## License
 
