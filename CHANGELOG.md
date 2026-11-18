@@ -2,6 +2,19 @@
 
 All notable changes to the gh-profile plugin will be documented in this file.
 
+## [1.2.4] - 2026-11-18
+
+### Fixed
+- **gh account isolation**: The SessionStart hook now writes `GH_CONFIG_DIR` to `CLAUDE_ENV_FILE` so later Bash commands use the profile's login, and sends its instructions to Claude through `additionalContext`. The old `env` output field was never supported.
+- **Windows paths**: Paths written with escaped backslashes (`"C:\\Work\\*"`, as in the example config) now match
+- **Config parsing**: Trailing `# comments`, single-quoted values and unquoted values now work. Before, `default: personal  # comment` (as in the README) gave "Invalid default profile"
+- **gh-wrapper**: Uses the same path matching as the hook (new `hooks/profile-lib.sh`), so both always pick the same profile and treat characters like `(` literally
+- **Signing**: A profile without a `signing_key` now removes the signing settings a previous profile added, and leaves settings you set yourself. A profile with a key always turns signing on. `/gh-profile:switch` and `/gh-profile:clone` follow the same rules
+- **Linux/macOS**: Hook scripts are now committed as executable
+
+### Added
+- Warning at session start when a profile has no signing key but commits will still be signed with another key
+
 ## [1.2.3] - 2026-10-14
 
 ### Fixed

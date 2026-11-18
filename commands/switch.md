@@ -36,8 +36,9 @@ Switch the current repository to use a specific GitHub profile, including both g
    git config user.email "[profile email]"
    ```
    - **IMPORTANT**: Always use double quotes around values to prevent shell injection
-   - If profile has a signing_key: `git config user.signingkey "[key]"`
-   - If profile has NO signing_key: `git config --unset user.signingkey 2>/dev/null || true`
+   - If profile has a signing_key: `git config user.signingkey "[key]"`, `git config commit.gpgsign true` and `git config gh-profile.signing true` (the last one labels these settings as set by gh-profile)
+   - If profile has NO signing_key: only if `git config --local --bool gh-profile.signing` prints `true`, run `git config --local --unset user.signingkey`, `git config --local --unset gh-profile.signing`, and (only if `git config --local --bool commit.gpgsign` prints `true`) `git config --local --unset commit.gpgsign`. Never remove signing settings without the label: the user set those.
+   - Then, if the profile has NO signing_key and `git config --bool commit.gpgsign` prints `true`, warn: "This profile has no signing key, but commits here will be signed with [`git config user.signingkey`, or "your default key"]. To stop: `git config commit.gpgsign false`"
 
 ### Phase 4: Point gh CLI at the Profile's Config
 

@@ -68,8 +68,8 @@ Each profile has its own isolated gh config folder at `~/.claude/gh-configs/[pro
     git config user.name "[profile name]"
     git config user.email "[profile email]"
     ```
-    - If profile has a signing_key: `git config user.signingkey "[key]"`
-    - If profile has NO signing_key: `git config --unset user.signingkey 2>/dev/null || true`
+    - If profile has a signing_key: `git config user.signingkey "[key]"`, `git config commit.gpgsign true` and `git config gh-profile.signing true` (the last one labels these settings as set by gh-profile)
+    - If profile has NO signing_key: `git config --unset user.signingkey 2>/dev/null || true`. Then if `git config --bool commit.gpgsign` prints `true`, warn: "This profile has no signing key, but commits here will be signed with [`git config user.signingkey`, or "your default key"]. To stop: `git config commit.gpgsign false`"
 
 ### Phase 5: Confirmation
 

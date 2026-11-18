@@ -64,6 +64,8 @@ profiles:
 default: personal               # Used when no path matches
 ```
 
+**Signing:** a profile with a `signing_key` turns commit signing on in that repo. A profile without one doesn't change signing: it removes only the signing settings gh-profile itself added (it labels them `gh-profile.signing` in the repo's git config) and leaves any you set yourself, including your global git settings. If that means commits will still be signed with another key, the session start message warns you and shows the command to turn it off.
+
 ## Commands
 
 | Command | Description |
