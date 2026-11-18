@@ -2,6 +2,48 @@
 
 All notable changes to the gh-profile plugin will be documented in this file.
 
+## [1.2.4] - 2026-11-18
+
+### Fixed
+- **gh account isolation**: The SessionStart hook now writes `GH_CONFIG_DIR` to `CLAUDE_ENV_FILE` so later Bash commands use the profile's login, and sends its instructions to Claude through `additionalContext`. The old `env` output field was never supported.
+- **Windows paths**: Paths written with escaped backslashes (`"C:\\Work\\*"`, as in the example config) now match
+- **Config parsing**: Trailing `# comments`, single-quoted values and unquoted values now work. Before, `default: personal  # comment` (as in the README) gave "Invalid default profile"
+- **gh-wrapper**: Uses the same path matching as the hook (new `hooks/profile-lib.sh`), so both always pick the same profile and treat characters like `(` literally
+- **Signing**: A profile without a `signing_key` now removes the signing settings a previous profile added, and leaves settings you set yourself. A profile with a key always turns signing on. `/gh-profile:switch` and `/gh-profile:clone` follow the same rules
+- **Linux/macOS**: Hook scripts are now committed as executable
+- **Escaping**: The `gh` commands in the session start message are shell-escaped, and the message stays valid JSON when a path contains `\`. Double-quoted config values decode `\"` and `\\`, so `name: "Alice \"Ace\" Smith"` works
+
+### Added
+- Warning at session start when a profile has no signing key but commits will still be signed with another key
+
+## [1.2.3] - 2026-10-14
+
+### Fixed
+- **`/gh-profile:switch` and `/gh-profile:clone`**: Use the profile's own gh config folder (`GH_CONFIG_DIR`) instead of `gh auth switch`, which no longer matched how logins are stored
+
+### Changed
+- README, setup wizard and example config now describe logging in once per profile folder, the `gh-wrapper` script, and optional per-folder git credentials
+
+## [1.2.2] - 2026-02-25
+
+### Fixed
+- Republished so the marketplace picks up the Windows Git Bash sed path fix from 1.2.1
+
+## [1.2.1] - 2026-01-14
+
+### Added
+- **Per-profile `GH_CONFIG_DIR`**: Each profile gets its own gh config folder at `~/.claude/gh-configs/<profile>`, so different terminals can use different accounts at once
+- Session start message tells Claude to prefix gh commands with the profile's `GH_CONFIG_DIR`
+- `hooks/gh-wrapper.sh` / `gh-wrapper.cmd`: run gh with the profile picked from the current folder
+
+### Fixed
+- Windows-compatible hook wrapper (`run-hook.cmd`)
+- sed path conversion under Windows Git Bash
+- Commands and hooks moved to the plugin root; marketplace name matches directory name
+
+### Changed
+- README: plugin update and restart instructions
+
 ## [1.2.0] - 2025-01-11
 
 ### Fixed

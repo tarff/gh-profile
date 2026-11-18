@@ -4,6 +4,8 @@
 
 set -euo pipefail
 
+source "$(dirname "${BASH_SOURCE[0]}")/profile-lib.sh"
+
 # Determine profile based on current directory
 determine_profile() {
   local current_dir="$1"
@@ -19,37 +21,14 @@ determine_profile() {
     return
   fi
 
-  # Convert current dir to lowercase for matching
-  local current_lower=$(echo "$current_dir" | tr '[:upper:]' '[:lower:]')
-
-  # Extract personal paths and check
-  local personal_paths=$(sed -n '/^  personal:/,/^  work:/p' "$config_file" | grep -E '^\s+- "' | sed 's/.*- "//;s/"$//' 2>/dev/null || true)
-  while IFS= read -r path; do
-    [ -z "$path" ] && continue
-    local path_lower=$(echo "$path" | tr '[:upper:]' '[:lower:]')
-    # Convert glob * to regex .*
-    local pattern="${path_lower//\*/.*}"
-    if echo "$current_lower" | grep -qE "^${pattern}$" 2>/dev/null; then
-      echo "personal"
-      return
-    fi
-  done <<< "$personal_paths"
-
-  # Extract work paths and check
-  local work_paths=$(sed -n '/^  work:/,/^default:/p' "$config_file" | grep -E '^\s+- "' | sed 's/.*- "//;s/"$//' 2>/dev/null || true)
-  while IFS= read -r path; do
-    [ -z "$path" ] && continue
-    local path_lower=$(echo "$path" | tr '[:upper:]' '[:lower:]')
-    local pattern="${path_lower//\*/.*}"
-    if echo "$current_lower" | grep -qE "^${pattern}$" 2>/dev/null; then
-      echo "work"
-      return
-    fi
-  done <<< "$work_paths"
+  local profile
+  profile=$(match_profile "$current_dir" "$config_file")
 
   # Fall back to default
-  local default_profile=$(grep '^default:' "$config_file" | sed 's/default: //' | tr -d '[:space:]')
-  echo "$default_profile"
+  if [ -z "$profile" ]; then
+    profile=$(default_profile "$config_file")
+  fi
+  echo "$profile"
 }
 
 # Get current directory in Windows format

@@ -6,7 +6,8 @@ set -euo pipefail
 
 json_escape() {
   local str="$1"
-  str="${str//\/\\}"
+  local bs='\'
+  str="${str//"$bs"/"$bs$bs"}"
   str="${str//\"/\\\"}"
   printf '%s' "$str"
 }
@@ -15,13 +16,13 @@ output_json_with_env() {
   local continue_val="$1"
   local message="$2"
   local gh_config_dir="${3:-}"
-  message=$(json_escape "$message")
-  gh_config_dir=$(json_escape "$gh_config_dir")
-  if [ -n "$gh_config_dir" ]; then
-    echo "{\"continue\": $continue_val, \"systemMessage\": \"$message\", \"env\": {\"GH_CONFIG_DIR\": \"$gh_config_dir\"}}"
-  else
-    echo "{\"continue\": $continue_val, \"systemMessage\": \"$message\"}"
+  # Persist for later Bash tool calls (hook JSON has no env field)
+  if [ -n "$gh_config_dir" ] && [ -n "${CLAUDE_ENV_FILE:-}" ]; then
+    printf 'export GH_CONFIG_DIR=%q\n' "$gh_config_dir" >> "$CLAUDE_ENV_FILE"
   fi
+  message=$(json_escape "$message")
+  # systemMessage is shown to the user; additionalContext reaches Claude
+  echo "{\"continue\": $continue_val, \"systemMessage\": \"$message\", \"hookSpecificOutput\": {\"hookEventName\": \"SessionStart\", \"additionalContext\": \"$message\"}}"
 }
 
 output_json() {
@@ -36,45 +37,7 @@ output_json() {
   fi
 }
 
-escape_for_regex() {
-  local str="$1"
-  local bs='\'
-  str="${str//\/${bs}${bs}}"
-  str="${str//./${bs}.}"
-  str="${str//\[/${bs}[}"
-  str="${str//\]/${bs}]}"
-  str="${str//^/${bs}^}"
-  str="${str//\$/${bs}$}"
-  str="${str//+/${bs}+}"
-  str="${str//\?/${bs}?}"
-  str="${str//\{/${bs}\{}"
-  str="${str//\}/${bs}\}}"
-  str="${str//|/${bs}|}"
-  str="${str//(/${bs}(}"
-  str="${str//)/${bs})}"
-  str="${str//\*/.*}"
-  printf '%s' "$str"
-}
-
-extract_field() {
-  local section_start="$1"
-  local section_end="$2"
-  local field="$3"
-  local config_file="$4"
-  local value
-  value=$(sed -n "/^  ${section_start}:/,/^  ${section_end}/p" "$config_file" \
-    | grep "${field}:" | head -1 \
-    | sed "s/.*${field}: \"//;s/\"$//" 2>/dev/null) || true
-  printf '%s' "$value"
-}
-
-extract_paths() {
-  local section_start="$1"
-  local section_end="$2"
-  local config_file="$3"
-  sed -n "/^  ${section_start}:/,/^  ${section_end}/p" "$config_file" \
-    | grep -E '^\s+- "' | sed 's/.*- "//;s/"$//' 2>/dev/null || true
-}
+source "$(dirname "${BASH_SOURCE[0]}")/profile-lib.sh"
 
 # Exit silently if not in a git repository
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
@@ -112,68 +75,23 @@ if [[ "$RAW_PWD" =~ ^/([a-zA-Z])/ ]]; then
 else
   CURRENT_DIR="$RAW_PWD"
 fi
-CURRENT_DIR_LOWER=$(echo "$CURRENT_DIR" | tr '[:upper:]' '[:lower:]')
 
-MATCHED_PROFILE=""
-PROFILE_NAME=""
-PROFILE_EMAIL=""
-PROFILE_GH_USER=""
-PROFILE_SIGNING_KEY=""
-
-# Check personal profile paths
-while IFS= read -r path_pattern || [ -n "$path_pattern" ]; do
-  [ -z "$path_pattern" ] && continue
-  # Normalize path: convert backslashes to forward slashes and lowercase
-  path_pattern_lower="${path_pattern//\\//}"
-  path_pattern_lower=$(echo "$path_pattern_lower" | tr '[:upper:]' '[:lower:]')
-  regex_pattern=$(escape_for_regex "$path_pattern_lower")
-  if printf '%s' "$CURRENT_DIR_LOWER" | grep -qE "^${regex_pattern}$" 2>/dev/null; then
-    MATCHED_PROFILE="personal"
-    PROFILE_NAME=$(extract_field "personal" "work:" "name" "$CONFIG_FILE")
-    PROFILE_EMAIL=$(extract_field "personal" "work:" "email" "$CONFIG_FILE")
-    PROFILE_GH_USER=$(extract_field "personal" "work:" "gh_user" "$CONFIG_FILE")
-    PROFILE_SIGNING_KEY=$(extract_field "personal" "work:" "signing_key" "$CONFIG_FILE")
-    break
-  fi
-done <<< "$(extract_paths "personal" "work:" "$CONFIG_FILE")"
-
-# Check work profile paths
-if [ -z "$MATCHED_PROFILE" ]; then
-  while IFS= read -r path_pattern || [ -n "$path_pattern" ]; do
-    [ -z "$path_pattern" ] && continue
-    # Normalize path: convert backslashes to forward slashes and lowercase
-  path_pattern_lower="${path_pattern//\\//}"
-  path_pattern_lower=$(echo "$path_pattern_lower" | tr '[:upper:]' '[:lower:]')
-    regex_pattern=$(escape_for_regex "$path_pattern_lower")
-    if printf '%s' "$CURRENT_DIR_LOWER" | grep -qE "^${regex_pattern}$" 2>/dev/null; then
-      MATCHED_PROFILE="work"
-      PROFILE_NAME=$(extract_field "work" "default:" "name" "$CONFIG_FILE")
-      PROFILE_EMAIL=$(extract_field "work" "default:" "email" "$CONFIG_FILE")
-      PROFILE_GH_USER=$(extract_field "work" "default:" "gh_user" "$CONFIG_FILE")
-      PROFILE_SIGNING_KEY=$(extract_field "work" "default:" "signing_key" "$CONFIG_FILE")
-      break
-    fi
-  done <<< "$(extract_paths "work" "default:" "$CONFIG_FILE")"
-fi
+MATCHED_PROFILE=$(match_profile "$CURRENT_DIR" "$CONFIG_FILE")
 
 # Use default profile if no path matched
 if [ -z "$MATCHED_PROFILE" ]; then
-  MATCHED_PROFILE=$(grep '^default:' "$CONFIG_FILE" | sed 's/default: //' | tr -d '[:space:]')
-  if [ "$MATCHED_PROFILE" = "personal" ]; then
-    PROFILE_NAME=$(extract_field "personal" "work:" "name" "$CONFIG_FILE")
-    PROFILE_EMAIL=$(extract_field "personal" "work:" "email" "$CONFIG_FILE")
-    PROFILE_GH_USER=$(extract_field "personal" "work:" "gh_user" "$CONFIG_FILE")
-    PROFILE_SIGNING_KEY=$(extract_field "personal" "work:" "signing_key" "$CONFIG_FILE")
-  elif [ "$MATCHED_PROFILE" = "work" ]; then
-    PROFILE_NAME=$(extract_field "work" "default:" "name" "$CONFIG_FILE")
-    PROFILE_EMAIL=$(extract_field "work" "default:" "email" "$CONFIG_FILE")
-    PROFILE_GH_USER=$(extract_field "work" "default:" "gh_user" "$CONFIG_FILE")
-    PROFILE_SIGNING_KEY=$(extract_field "work" "default:" "signing_key" "$CONFIG_FILE")
-  else
+  MATCHED_PROFILE=$(default_profile "$CONFIG_FILE")
+  if [ "$MATCHED_PROFILE" != "personal" ] && [ "$MATCHED_PROFILE" != "work" ]; then
     output_json "true" "gh-profile: Invalid default profile"
     exit 0
   fi
 fi
+
+SECTION_END=$(section_end "$MATCHED_PROFILE")
+PROFILE_NAME=$(extract_field "$MATCHED_PROFILE" "$SECTION_END" "name" "$CONFIG_FILE")
+PROFILE_EMAIL=$(extract_field "$MATCHED_PROFILE" "$SECTION_END" "email" "$CONFIG_FILE")
+PROFILE_GH_USER=$(extract_field "$MATCHED_PROFILE" "$SECTION_END" "gh_user" "$CONFIG_FILE")
+PROFILE_SIGNING_KEY=$(extract_field "$MATCHED_PROFILE" "$SECTION_END" "signing_key" "$CONFIG_FILE")
 
 if [ -z "$PROFILE_NAME" ] || [ -z "$PROFILE_EMAIL" ]; then
   output_json "true" "gh-profile: Missing name/email in config"
@@ -193,11 +111,30 @@ fi
 
 if [ -n "$PROFILE_SIGNING_KEY" ]; then
   CURRENT_KEY=$(git config user.signingkey 2>/dev/null || echo "")
-  if [ "$CURRENT_KEY" != "$PROFILE_SIGNING_KEY" ]; then
+  CURRENT_SIGN=$(git config --bool commit.gpgsign 2>/dev/null || echo "false")
+  if [ "$CURRENT_KEY" != "$PROFILE_SIGNING_KEY" ] || [ "$CURRENT_SIGN" != "true" ]; then
     git config user.signingkey "$PROFILE_SIGNING_KEY"
     git config commit.gpgsign true
+    git config gh-profile.signing true  # label: this hook set the signing settings
     GIT_SWITCHED=true
   fi
+else
+  # Remove signing settings only if this hook set them; leave the user's own alone
+  if [ "$(git config --local --bool gh-profile.signing 2>/dev/null || true)" = "true" ]; then
+    git config --local --unset user.signingkey || true
+    if [ "$(git config --local --bool commit.gpgsign 2>/dev/null || true)" = "true" ]; then
+      git config --local --unset commit.gpgsign  # keep an explicit false
+    fi
+    git config --local --unset gh-profile.signing
+    GIT_SWITCHED=true
+  fi
+fi
+
+# Warn if commits will still be signed with a key that isn't this profile's
+SIGN_WARNING=""
+if [ -z "$PROFILE_SIGNING_KEY" ] && [ "$(git config --bool commit.gpgsign 2>/dev/null || true)" = "true" ]; then
+  SIGN_KEY=$(git config user.signingkey 2>/dev/null || true)
+  SIGN_WARNING=" WARNING: this profile has no signing key, but commits here will be signed with ${SIGN_KEY:+key $SIGN_KEY}${SIGN_KEY:-your default key}. To stop: git config commit.gpgsign false"
 fi
 
 # Set up per-profile GH_CONFIG_DIR
@@ -223,17 +160,17 @@ if command -v gh &> /dev/null; then
       GH_STATUS="config exists, no user"
     fi
   else
-    GH_STATUS="need auth: GH_CONFIG_DIR=$GH_CONFIG_DIR gh auth login"
+    GH_STATUS=$(printf 'need auth: GH_CONFIG_DIR=%q gh auth login' "$GH_CONFIG_DIR")
   fi
 else
   GH_STATUS="gh not installed"
 fi
 
-GH_INSTRUCTION="CRITICAL: For ALL gh CLI commands, you MUST use: GH_CONFIG_DIR=\"$GH_CONFIG_DIR_WIN\" gh <command>"
+GH_INSTRUCTION=$(printf 'CRITICAL: For ALL gh CLI commands, you MUST use: GH_CONFIG_DIR=%q gh <command>' "$GH_CONFIG_DIR_WIN")
 if [ "$GIT_SWITCHED" = true ]; then
-  MESSAGE="gh-profile: Switched to $MATCHED_PROFILE ($PROFILE_EMAIL), gh: $GH_STATUS. $GH_INSTRUCTION"
+  MESSAGE="gh-profile: Switched to $MATCHED_PROFILE ($PROFILE_EMAIL), gh: $GH_STATUS. $GH_INSTRUCTION$SIGN_WARNING"
 else
-  MESSAGE="gh-profile: Using $MATCHED_PROFILE ($PROFILE_EMAIL), gh: $GH_STATUS. $GH_INSTRUCTION"
+  MESSAGE="gh-profile: Using $MATCHED_PROFILE ($PROFILE_EMAIL), gh: $GH_STATUS. $GH_INSTRUCTION$SIGN_WARNING"
 fi
 
 output_json_with_env "true" "$MESSAGE" "$GH_CONFIG_DIR_WIN"

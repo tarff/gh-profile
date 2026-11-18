@@ -26,19 +26,21 @@ Clone a GitHub repository and configure it with the specified profile, including
    - If profile specified in arguments, use that
    - Otherwise, use AskUserQuestion to ask: "Which profile for this repo?" (personal / work)
 
-### Phase 2: Switch gh auth (before cloning)
+### Phase 2: Check the Profile's gh Login (before cloning)
+
+Each profile has its own isolated gh config folder at `~/.claude/gh-configs/[profile]`. Cloning runs with that folder so the right account is used.
 
 5. **Check if gh CLI is installed**:
    ```bash
    gh --version 2>/dev/null || echo "NOT_INSTALLED"
    ```
 
-6. **If gh is installed AND profile has gh_user set**, switch to the correct account first:
+6. **If gh is installed**, check the profile's gh login:
    ```bash
-   gh auth switch --user "[gh_user]" 2>&1
+   GH_CONFIG_DIR="$HOME/.claude/gh-configs/[profile]" command gh auth status 2>&1
    ```
-   - This ensures `gh repo clone` uses the correct authentication
-   - If switch fails, warn but continue (user can authenticate manually)
+   - If not logged in, warn and suggest: `GH_CONFIG_DIR="$HOME/.claude/gh-configs/[profile]" command gh auth login`
+   - Continue anyway (public repos clone without auth)
 
 ### Phase 3: Clone
 
@@ -53,7 +55,7 @@ Clone a GitHub repository and configure it with the specified profile, including
 
 8. **Clone the repository**:
    - **IMPORTANT**: Always quote the URL to prevent shell injection
-   - If gh is installed: `gh repo clone "[owner/repo]"` (uses current gh auth)
+   - If gh is installed: `GH_CONFIG_DIR="$HOME/.claude/gh-configs/[profile]" command gh repo clone "[owner/repo]"`
    - Otherwise: `git clone "[repo-url]"`
 
 9. **Extract repo name** from URL (last path segment without .git)
@@ -66,8 +68,8 @@ Clone a GitHub repository and configure it with the specified profile, including
     git config user.name "[profile name]"
     git config user.email "[profile email]"
     ```
-    - If profile has a signing_key: `git config user.signingkey "[key]"`
-    - If profile has NO signing_key: `git config --unset user.signingkey 2>/dev/null || true`
+    - If profile has a signing_key: `git config user.signingkey "[key]"`, `git config commit.gpgsign true` and `git config gh-profile.signing true` (the last one labels these settings as set by gh-profile)
+    - If profile has NO signing_key: `git config --unset user.signingkey 2>/dev/null || true`. Then if `git config --bool commit.gpgsign` prints `true`, warn: "This profile has no signing key, but commits here will be signed with [`git config user.signingkey`, or "your default key"]. To stop: `git config commit.gpgsign false`"
 
 ### Phase 5: Confirmation
 
@@ -83,5 +85,5 @@ Clone a GitHub repository and configure it with the specified profile, including
     - Signing Key: [key or "not set"]
 
     GitHub CLI:
-    - Active Account: [gh_user or "not configured"]
+    - Account: [logged-in account for the profile, or "not logged in"]
     ```

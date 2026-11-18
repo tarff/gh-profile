@@ -18,14 +18,14 @@ Guide the user through setting up their personal and work GitHub profiles with b
    ```bash
    gh --version 2>/dev/null || echo "NOT_INSTALLED"
    ```
-   - If not installed, inform user: "GitHub CLI (gh) is not installed. Install it from https://cli.github.com/ to enable gh auth switching. You can continue setup for git config only."
+   - If not installed, inform user: "GitHub CLI (gh) is not installed. Install it from https://cli.github.com/ to enable per-profile gh logins. You can continue setup for git config only."
 
-3. **Check current gh auth status**:
+3. **Check each profile's gh login** (each profile has its own config folder):
    ```bash
-   gh auth status 2>&1
+   GH_CONFIG_DIR="$HOME/.claude/gh-configs/personal" gh auth status 2>&1
+   GH_CONFIG_DIR="$HOME/.claude/gh-configs/work" gh auth status 2>&1
    ```
-   - Parse output to identify logged-in accounts
-   - Note: Multiple accounts can be logged in simultaneously
+   - Note which profiles are logged in and as which account
 
 4. **Get current git global config** as defaults:
    ```bash
@@ -36,30 +36,31 @@ Guide the user through setting up their personal and work GitHub profiles with b
 
 ### Phase 2: GitHub CLI Authentication Setup
 
-5. **If gh is installed, guide through multi-account login**:
+5. **If gh is installed, guide through per-profile login**:
 
    Display current auth status and explain:
    ```
    GitHub CLI Authentication
    =========================
-   To use different GitHub accounts for personal and work projects,
-   you need to log in to both accounts with gh CLI.
+   Each profile has its own gh config folder at ~/.claude/gh-configs/<profile>,
+   so you log in once per profile.
 
-   Currently logged in accounts: [list from gh auth status]
+   personal: [account or "not logged in"]
+   work: [account or "not logged in"]
    ```
 
-6. **If fewer than 2 accounts are logged in**, provide login instructions:
+6. **For each profile that is not logged in**, provide login instructions:
    ```
-   To add another GitHub account, run this command in a separate terminal:
+   Run this in Git Bash (or any POSIX shell), replacing <profile>:
 
-     gh auth login
+     GH_CONFIG_DIR="$HOME/.claude/gh-configs/<profile>" gh auth login
 
    When prompted:
    - Choose "GitHub.com" (or your enterprise host)
    - Choose your preferred protocol (HTTPS recommended)
    - Authenticate with browser or token
 
-   Repeat for each GitHub account you want to use.
+   Log in with the account that belongs to that profile.
    ```
 
    Use AskUserQuestion:
@@ -92,12 +93,12 @@ Guide the user through setting up their personal and work GitHub profiles with b
 
 ### Phase 4: Validate and Save
 
-10. **Validate gh usernames** (if gh is installed):
+10. **Validate gh usernames** (if gh is installed), for each profile:
     ```bash
-    gh auth status 2>&1 | grep -i "[username]" || echo "NOT_FOUND"
+    GH_CONFIG_DIR="$HOME/.claude/gh-configs/[profile]" gh auth status 2>&1 | grep -i "[username]" || echo "NOT_FOUND"
     ```
-    - Warn if a gh_user isn't in the logged-in accounts list
-    - Suggest running `gh auth login` to add missing accounts
+    - Warn if a profile's gh_user isn't the account logged in to that profile's folder
+    - Suggest `GH_CONFIG_DIR="$HOME/.claude/gh-configs/[profile]" gh auth login` to fix it
 
 11. **Ensure directory exists**:
     ```bash
@@ -148,14 +149,13 @@ Edit the YAML frontmatter above to update your profiles.
 
 ## Managing gh CLI Accounts
 
-To add a new GitHub account:
-  gh auth login
+Each profile has its own gh config folder at ~/.claude/gh-configs/<profile>.
 
-To see logged-in accounts:
-  gh auth status
+To log in a profile:
+  GH_CONFIG_DIR="$HOME/.claude/gh-configs/<profile>" gh auth login
 
-To switch accounts manually:
-  gh auth switch --user <username>
+To check a profile's login:
+  GH_CONFIG_DIR="$HOME/.claude/gh-configs/<profile>" gh auth status
 ```
 
 ### Phase 5: Confirmation

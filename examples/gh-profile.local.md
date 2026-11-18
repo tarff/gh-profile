@@ -36,7 +36,7 @@ This file stores your GitHub profile settings for the gh-profile plugin.
 - **name**: Your git user.name for this profile
 - **email**: Your git user.email for this profile
 - **signing_key**: Your GPG key ID for signing commits (optional, can be empty string)
-- **gh_user**: Your GitHub username for this profile (used for `gh auth switch`)
+- **gh_user**: Your GitHub username for this profile (checked against the profile's gh login)
 - **paths**: Array of path patterns that should use this profile (supports * wildcard)
 
 ## Path Patterns
@@ -55,28 +55,18 @@ Use `*` as a wildcard:
 
 ## GitHub CLI Multi-Account Setup
 
-To use different GitHub accounts for personal and work:
+Each profile has its own gh config folder at `~/.claude/gh-configs/<profile>`.
 
-1. Log in to your first account:
+1. Log in once per profile (Git Bash or any POSIX shell):
    ```
-   gh auth login
-   ```
-
-2. Log in to your second account:
-   ```
-   gh auth login
-   ```
-   (Choose the same host, it will add as a second account)
-
-3. Verify both are logged in:
-   ```
-   gh auth status
+   GH_CONFIG_DIR="$HOME/.claude/gh-configs/personal" gh auth login
+   GH_CONFIG_DIR="$HOME/.claude/gh-configs/work" gh auth login
    ```
 
-4. The plugin will automatically switch between them based on your directory!
+2. Verify each login:
+   ```
+   GH_CONFIG_DIR="$HOME/.claude/gh-configs/personal" gh auth status
+   GH_CONFIG_DIR="$HOME/.claude/gh-configs/work" gh auth status
+   ```
 
-## Manual gh auth commands
-
-- `gh auth status` - See all logged-in accounts
-- `gh auth switch` - Interactively switch accounts
-- `gh auth switch --user USERNAME` - Switch to specific account
+3. The plugin will automatically use the right folder based on your directory!
