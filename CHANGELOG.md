@@ -11,6 +11,7 @@ All notable changes to the gh-profile plugin will be documented in this file.
 - **gh-wrapper**: Uses the same path matching as the hook (new `hooks/profile-lib.sh`), so both always pick the same profile and treat characters like `(` literally
 - **Signing**: A profile without a `signing_key` now removes the signing settings a previous profile added, and leaves settings you set yourself. A profile with a key always turns signing on. `/gh-profile:switch` and `/gh-profile:clone` follow the same rules
 - **Linux/macOS**: Hook scripts are now committed as executable
+- **Escaping**: The `gh` commands in the session start message are shell-escaped, and the message stays valid JSON when a path contains `\`. Double-quoted config values decode `\"` and `\\`, so `name: "Alice \"Ace\" Smith"` works
 
 ### Added
 - Warning at session start when a profile has no signing key but commits will still be signed with another key

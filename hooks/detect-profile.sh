@@ -6,7 +6,8 @@ set -euo pipefail
 
 json_escape() {
   local str="$1"
-  str="${str//\/\\}"
+  local bs='\'
+  str="${str//"$bs"/"$bs$bs"}"
   str="${str//\"/\\\"}"
   printf '%s' "$str"
 }
@@ -159,13 +160,13 @@ if command -v gh &> /dev/null; then
       GH_STATUS="config exists, no user"
     fi
   else
-    GH_STATUS="need auth: GH_CONFIG_DIR=$GH_CONFIG_DIR gh auth login"
+    GH_STATUS=$(printf 'need auth: GH_CONFIG_DIR=%q gh auth login' "$GH_CONFIG_DIR")
   fi
 else
   GH_STATUS="gh not installed"
 fi
 
-GH_INSTRUCTION="CRITICAL: For ALL gh CLI commands, you MUST use: GH_CONFIG_DIR=\"$GH_CONFIG_DIR_WIN\" gh <command>"
+GH_INSTRUCTION=$(printf 'CRITICAL: For ALL gh CLI commands, you MUST use: GH_CONFIG_DIR=%q gh <command>' "$GH_CONFIG_DIR_WIN")
 if [ "$GIT_SWITCHED" = true ]; then
   MESSAGE="gh-profile: Switched to $MATCHED_PROFILE ($PROFILE_EMAIL), gh: $GH_STATUS. $GH_INSTRUCTION$SIGN_WARNING"
 else

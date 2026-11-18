@@ -1,16 +1,29 @@
 #!/bin/bash
 # Config parsing and path matching shared by detect-profile.sh and gh-wrapper.sh
 
-# Value from the text after "key:" or "- ": inside "double quotes" (with "\\"
-# decoded to "\"), inside 'single quotes' (with '' decoded to '), or the bare
+# Value from the text after "key:" or "- ": inside "double quotes" (with \\
+# and \" decoded), inside 'single quotes' (with '' decoded to '), or the bare
 # value with any trailing "# comment" removed.
 yaml_value() {
   local rest="$1"
   rest="${rest#"${rest%%[![:space:]]*}"}"
   if [[ "$rest" == \"* ]]; then
-    rest="${rest#\"}"
-    rest="${rest%%\"*}"
-    printf '%s' "${rest//\\\\/\\}"
+    # Read up to the closing quote, decoding \\ and \" (other backslashes kept,
+    # so "C:\Work\*" still works)
+    local out="" c n i=1
+    while [ "$i" -lt "${#rest}" ]; do
+      c="${rest:i:1}"
+      n="${rest:i+1:1}"
+      if [ "$c" = '\' ] && { [ "$n" = '\' ] || [ "$n" = '"' ]; }; then
+        c="$n"
+        i=$((i + 1))
+      elif [ "$c" = '"' ]; then
+        break
+      fi
+      out+="$c"
+      i=$((i + 1))
+    done
+    printf '%s' "$out"
   elif [[ "$rest" == \'* ]]; then
     printf '%s' "$rest" | sed -E "s/^'(([^']|'')*)'.*/\1/; s/''/'/g"
   else
